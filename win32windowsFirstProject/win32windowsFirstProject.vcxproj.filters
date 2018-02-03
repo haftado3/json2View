@@ -23,8 +23,69 @@
     <ClInclude Include="jsonParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="json.h">
+    <ClInclude Include="json.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="jsonMaker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TooltipMaker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Decoder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="controlMaker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="converter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="addItem2Tree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="createToolbar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="createWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="myclass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="index.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="win32windowsFirstProject.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="file.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="lock.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="open.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="iconup.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icondown.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons8_Expand_Arrow.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons8_Collapse_Arrow.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

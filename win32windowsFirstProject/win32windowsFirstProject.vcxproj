@@ -22,8 +22,33 @@
     <ClCompile Include="winMain.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="json.h" />
+    <ClInclude Include="controlMaker.h" />
+    <ClInclude Include="converter.h" />
+    <ClInclude Include="createToolbar.h" />
+    <ClInclude Include="createWindow.h" />
+    <ClInclude Include="Decoder.h" />
+    <ClInclude Include="json.hpp" />
+    <ClInclude Include="jsonMaker.h" />
     <ClInclude Include="jsonParser.h" />
+    <ClInclude Include="myclass.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="TooltipMaker.h" />
+    <ClInclude Include="addItem2Tree.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="index.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="win32windowsFirstProject.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="file.bmp" />
+    <Image Include="icons8_Collapse_Arrow.ico" />
+    <Image Include="icons8_Expand_Arrow.ico" />
+    <Image Include="iconup.ico" />
+    <Image Include="icondown.ico" />
+    <Image Include="lock.bmp" />
+    <Image Include="open.bmp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F3F4CC73-3E6E-4617-A32F-9477A40041A0}</ProjectGuid>

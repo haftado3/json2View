@@ -1,266 +1,506 @@
+﻿//win32Form.cpp
+#pragma comment(linker,"\"/manifestdependency:type='win32' \
+name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
+processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"") 
+#pragma comment(lib, "comctl32.lib")
+
 #include <windows.h>  
-#include <cstdlib>  
 #include <string>  
 #include <tchar.h>  
-#include "json.h"
+#include "json.hpp"
 #include <locale>
 #include <codecvt>
 #include <fstream>
-#include <iostream>
 #include "jsonParser.h"
-#pragma comment(lib, "kernel32.lib")
-#pragma comment(lib, "user32.lib")
-#pragma comment(lib, "gdi32.lib")
+#include "controlMaker.h"
+#include <Commctrl.h>
+#include "jsonMaker.h"
+#include "TooltipMaker.h"
+#include "converter.h"
+#include "addItem2Tree.h"
+#include "resource.h"
+#include "createWindow.h"
+#include "createToolbar.h"
+#include <uxtheme.h>
+
+
+#define UD_MAX_POS 30
+#define UD_MIN_POS 0
+
+#define TB_MAX_POS 100
+#define TB_MIN_POS 0
+
+#pragma execution_character_set("utf-8")
 //consts for resources
 #define ID_CLOSE 0x001  
 #define ID_MINIMIZE 0x002   
 #define ID_test 110;
+const int iconWidth = 25;
+const int iconHeight = 25;
 
 //declaring method wndproc
-LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lparam);
+LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 //local variables
 string locationXString, componentType;
-BOOL isMouseDownOnCloseButton = FALSE;
-BOOL isMouseDownOnMinimizeButton = FALSE;
-BOOL isMouseDownOnDemoButton = FALSE;
+INT_PTR A[MAXCONTROLS];
+HWND jsonControl[MAXCONTROLS];
 HWND hwnd;
 HINSTANCE hInst;
-jsonParser a;
+json_parser a;
+item* ptr;
+int iReturnBtns;
+DWORD controlStyle = NULL;
+string textalign;
+RECT rectangle;
+HBITMAP iconsENimages[MAXCONTROLS];
+static HFONT hFont = nullptr;
+long nFontSize = 13;
 
-//declaring typedate
 typedef std::basic_string<TCHAR> ustring;
+typedef std::ifstream::failure IOEXCEPTION;
 
-//consts for components
-enum {
-	IDBC_DEFPUSHBUTTON = 200,
-	IDBC_PUSHBUTTON,
-	IDBC_AUTOCHECKBOX,
-	IDBC_AUTORADIOBUTTON,
-	IDBC_GROUPBOX,
-	IDBC_ICON,
-	IDBC_BITMAP
-};
+createWindowControl try1;
 
-// function to draw close button  
-void DrawCloseButton(HDC hdc)
-{
-	if (isMouseDownOnCloseButton)
-	{
-		RECT rc;
-		rc.left = 0;
-		rc.top = 0;
-		rc.right = 30;
-		rc.bottom = 30;
-		HBRUSH br = CreateSolidBrush(RGB(200, 30, 30));
-		FillRect(hdc, &rc, br);
-
-		SetBkColor(hdc, RGB(200, 30, 30));
-		SetTextColor(hdc, RGB(255, 255, 255));
-
-		TextOut(hdc, 10, 8, L"X", 1);
+void setAlignment(int i) {
+	textalign = ptr[i].TextAlignment;
+	if (ptr[i].ComponentType == "button") {
+		if (textalign == "right")controlStyle = BS_RIGHT;
+		else if (textalign == "left") controlStyle = BS_LEFT;
+		else controlStyle = BS_CENTER;
 	}
-	else
-	{
-		RECT rc;
-		rc.left = 0;
-		rc.top = 0;
-		rc.right = 30;
-		rc.bottom = 30;
-		HBRUSH br = CreateSolidBrush(RGB(0, 0, 0));
-		FillRect(hdc, &rc, br);
-
-		SetBkColor(hdc, RGB(0, 0, 0));
-		SetTextColor(hdc, RGB(255, 255, 255));
-
-		TextOut(hdc, 10, 8, L"X", 1);
-	}
-
-}
-
-//draw minimize button for back color & text  
-void DrawMinimizeButton(HDC hdc)
-{
-	if (isMouseDownOnMinimizeButton)
-	{
-		RECT rc;
-		rc.left = 0;
-		rc.top = 0;
-		rc.right = 30;
-		rc.bottom = 30;
-		HBRUSH br = CreateSolidBrush(RGB(60, 60, 100));
-		FillRect(hdc, &rc, br);
-
-		SetBkColor(hdc, RGB(60, 60, 100));
-		SetTextColor(hdc, RGB(255, 255, 255));
-		TextOut(hdc, 10, 5, L"_", 1);
-	}
-	else
-	{
-		RECT rc;
-		rc.left = 0;
-		rc.top = 0;
-		rc.right = 30;
-		rc.bottom = 30;
-		HBRUSH br = CreateSolidBrush(RGB(0, 0, 0));
-		FillRect(hdc, &rc, br);
-
-		SetBkColor(hdc, RGB(0, 0, 0));
-		SetTextColor(hdc, RGB(255, 255, 255));
-		TextOut(hdc, 10, 5, L"_", 1);
+	if (ptr[i].ComponentType == "label" || ptr[i].ComponentType == "textbox") {
+		if (textalign == "right")controlStyle = SS_RIGHT;
+		else if (textalign == "left") controlStyle = SS_LEFT;
+		else controlStyle = SS_CENTER;
 	}
 }
 
-// function to fill rectangles to look like border for left,right & bottom direction  
-void Draw_LeftRightBottom_Rectangles(RECT rect, HDC hdc, HBRUSH brush, int width, int height)
-{
-	RECT leftrect, rightrect, bottomrect;
-	leftrect.left = 0;
-	leftrect.top = rect.bottom - 266;
-	leftrect.right = 4;
-	leftrect.bottom = height;
-	//fill left rect of window for border  
-	FillRect(hdc, &leftrect, brush);
 
-	rightrect.left = width - 4;
-	rightrect.top = rect.bottom - 266;
-	rightrect.right = width;
-	rightrect.bottom = height;
-	//fill right rect of window  
-	FillRect(hdc, &rightrect, brush);
 
-	bottomrect.left = 0;
-	bottomrect.top = height - 4;
-	bottomrect.right = width;
-	bottomrect.bottom = height;
-	//fill bottom rect of window  
-	FillRect(hdc, &bottomrect, brush);
+RECT getLocation(int i) {
+	return RECT{ ptr[i].LocationX, ptr[i].LocationY, ptr[i].Width, ptr[i].Height };
+}
+void loadFont(HDC hdc) {
+	AddFontResource(L"bnazanin.ttf");
+	const TCHAR* fontName = _T("B Nazanin");
+
+	LOGFONT logFont = { 0 };
+	logFont.lfHeight = -MulDiv(nFontSize, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+	logFont.lfWeight = FW_BOLD;
+	logFont.lfCharSet = ARABIC_CHARSET;
+	logFont.lfOutPrecision = OUT_DEFAULT_PRECIS;
+	logFont.lfQuality = DRAFT_QUALITY;
+	logFont.lfPitchAndFamily = VARIABLE_PITCH;
+	_tcscpy_s(logFont.lfFaceName, fontName);
+	hFont = CreateFontIndirect(&logFont);
+	SystemParametersInfo(SPI_SETFONTSMOOTHING, TRUE, 0, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+	SystemParametersInfo(SPI_SETFONTSMOOTHINGTYPE, 0, PVOID(FE_FONTSMOOTHINGCLEARTYPE), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+	SystemParametersInfo(SPI_SETFONTSMOOTHINGCONTRAST, 0, PVOID(1600), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+	ReleaseDC(hwnd, hdc);
 }
 
-HWND CreateButton(const HWND hParent, const HINSTANCE hInst, DWORD dwStyle, const RECT& rc, INT_PTR id, const ustring& caption)
-{
-	dwStyle |= WS_CHILD | WS_VISIBLE;
-	return CreateWindow(              //extended styles
-		_T("button"),                 //control 'class' name
-		caption.c_str(),              //control caption
-		dwStyle,                      //control style 
-		rc.left,                      //position: left
-		rc.top,                       //position: top
-		rc.right,                     //width
-		rc.bottom,                    //height
-		hParent,                      //parent window handle
-									  //control's ID
-		(HMENU)id,
-		hInst,                        //application instance
-		0);                           //user defined info
-
+void loadIcons(HWND hwnd, HDC hdc, int i) {
+	//creating icon for buttons which is supporting text alignment with itself
+	const HDC hMemDC = CreateCompatibleDC(hdc);
+	try
+	{
+		//if you want to load from resources try this one :
+		//hbitmap[i] = LoadBitmap(hInst, MAKEINTRESOURCE(IDB_BITMAP1));
+		//loading icons and putting them int an array of hbitmap
+		if (ptr[i].Icon == "imageVenus")iconsENimages[i] = HBITMAP(LoadImage(nullptr, L"VENUS.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+		if (ptr[i].Icon == "ship")iconsENimages[i] = HBITMAP(LoadImage(nullptr, L"ship.bmp", IMAGE_BITMAP, ptr[i].Width, ptr[i].Height, LR_LOADFROMFILE));
+		if (ptr[i].Icon == "exitIcon")iconsENimages[i] = HBITMAP(LoadImage(nullptr, L"Close_24.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE)); // 0,0 is meaning use default size of icon
+		if (ptr[i].Icon == "miniIcon")iconsENimages[i] = HBITMAP(LoadImage(nullptr, L"down_24.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+		if (ptr[i].Icon == "addIcon")iconsENimages[i] = HBITMAP(LoadImage(nullptr, L"add_24.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+		if (ptr[i].Icon == "cancelIcon")iconsENimages[i] = HBITMAP(LoadImage(nullptr, L"cancl_24.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+		if (ptr[i].Icon == "okIcon")iconsENimages[i] = HBITMAP(LoadImage(nullptr, L"ok_24.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+	}
+	catch (IOEXCEPTION e)
+	{
+		MessageBox(hwnd, L"Cant load icon file.", L"ERORR!", MB_OK);
+	}
+	SelectObject(hMemDC, iconsENimages[i]);
+	DeleteDC(hMemDC);
+	ReleaseDC(hwnd, hdc);
 }
+void finalTouch(int i)
+{
+	if (jsonControl[i] == nullptr)
+	{
+		MessageBox(nullptr, L"Component Creation Failed!", L"Error!", MB_ICONEXCLAMATION);
+		exit(EXIT_FAILURE);
+	}
+	SendMessage(jsonControl[i], WM_SETFONT, WPARAM(hFont), LPARAM(MAKELONG(TRUE, 0)));
+	if (ptr[i].Visible == 1)  ShowWindow(jsonControl[i], SW_SHOW);
+	else ShowWindow(jsonControl[i], SW_HIDE);
+	if (ptr[i].Disabled == 1) {
+		EnableWindow(jsonControl[i], false);
+	}
 
-INT_PTR A[ARRAYSIZE];
-HWND jsonButton[ARRAYSIZE], minimize_button, close_button, customButton;
-
-int OnCreate(const HWND hwnd, CREATESTRUCT *cs)
+	//const LPWSTR buttoninfo = LPWSTR(charArray2utf(a.getInfo(i), i));
+	//CreateMyTooltip(jsonControl[i], buttoninfo, hFont);
+}
+LPCWSTR initControl(int i)
+{
+	textalign = ptr[i].TextAlignment;
+	setAlignment(i);
+	rectangle = getLocation(i);
+	LPCWSTR jsonText = charArray2utf(a.getText(i), i);
+	return jsonText;
+}
+int OnCreate(HWND hwnd, CREATESTRUCT *cs)
 {
 
-
-	minimize_button = CreateWindow(TEXT("button"), TEXT(""),
-		WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-		538, 0, 30, 30, hwnd, (HMENU)ID_MINIMIZE,
-		hInst, NULL);
-	close_button = CreateWindow(TEXT("button"), TEXT(""),
-		WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-		568, 0, 30, 30, hwnd, (HMENU)ID_CLOSE,
-		hInst, NULL);
-	
+	const HDC hdc = GetDC(hwnd);
+	loadFont(GetDC(hwnd));
 	//loading json file 
 	std::ifstream file;
-	file.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t>));
+
 	file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 	try {
-		file.open("C:\\Users\\Mahdi\\Documents\\Visual Studio 2015\\Projects\\Win32Project1\\Win32Project1\\button.json");
+		file.open(L"index.json");
 	}
-	catch(std::ifstream::failure e)
+
+	catch (IOEXCEPTION e)
 	{
 		MessageBox(hwnd, L"Cant load Json file.", L"ERORR!", MB_OK);
 		exit(EXIT_FAILURE);
 	}
-	json j = json::parse(file);
-	item* ptr = a.initialize(j);
-	//------------------
+	const json myJson = json::parse(file);
+	ptr = a.initialize(myJson);
 
-	// i may want to change font from user point of view or include font into my app.
-	HFONT hFont = CreateFont(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ARABIC_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH, L"B Nazanin Regular");
+	//making font indirect technique
+	//this add font resource has not effect on app
 
-	for (int i = 0; i < ARRAYSIZE; i++) {
+	//making buttons
+	for (int i = 0; i < MAXCONTROLS; i++) {
 		if (ptr[i].ComponentType == "button") {
+			controlStyle = BS_PUSHBUTTON;
+			const LPCWSTR buttonText = initControl(i);
 
-			//an id for button which i saved it , was inside create button
-			A[i] = static_cast<INT_PTR>(IDBC_DEFPUSHBUTTON);
+			if (ptr[i].ClickEvent == "returnBtnsName") {
+				iReturnBtns = i;
+				A[i] = 10001;
+			}
+			if (ptr[i].ClickEvent == "minimizeApp") {
+				A[i] = ID_MINIMIZE;
+			}
+			if (ptr[i].ClickEvent == "newwindow") {
+				A[i] = 1223;
 
-			//converting readed text to usable data for win32
+			}
+			jsonControl[i] = createControl(L"button", hwnd, hInst, controlStyle, rectangle, A[i], buttonText);
+			finalTouch(i);
+			loadIcons(hwnd, GetDC(jsonControl[i]), i);
+			SendMessage(jsonControl[i], BM_SETIMAGE, WPARAM(IMAGE_BITMAP), LPARAM(iconsENimages[i]));
+			const LPWSTR buttoninfo = LPWSTR(charArray2utf(a.getInfo(i), i));
+			CreateMyTooltip(jsonControl[i], buttoninfo, hFont);
 
-			string s = ptr[i].Text;
 
-			wstring w = wstring(s.begin(), s.end());
-			ustring us = w.c_str();
 
-			//location and size of button
-			RECT rc = { ptr[i].LocationX  ,  ptr[i].LocationY  ,  ptr[i].Width  ,  ptr[i].Height };
+			/*
+			//background color of button: working but has problem with text
+			HDC hdcBack = GetDC(hwnd);
+			HDC hMemBack = CreateCompatibleDC(hdcBack);
+			HBITMAP hBitmap = CreateCompatibleBitmap(hdcBack, 100, 105);
+			SelectObject(hMemBack, hBitmap);
+			SetDCBrushColor(hMemBack, RGB(0, 0, 255));
+			RECT r = { 0 };
+			r.left = 0;
+			r.right = 100;
+			r.top = 0;
+			r.bottom = 105;
+			FillRect(hMemBack, &r, (HBRUSH)GetStockObject(DC_BRUSH));
+			DeleteDC(hMemBack);
+			ReleaseDC(hwnd, hdcBack);
+			SendMessage(jsonButton[1], BM_SETIMAGE, (WPARAM)IMAGE_BITMAP, (LPARAM)hBitmap);
+			*/
 
-			//creating instance of all buttons components
-			jsonButton[i] = CreateButton(hwnd, hInst, BS_PUSHBUTTON, rc, A[i], us);
+		}
+		if (ptr[i].ComponentType == "label") {
+			A[i] = 10800 + i;
+			controlStyle = NULL;
+			const LPCWSTR labelText = initControl(i);
+			jsonControl[i] = createControl(L"static", hwnd, hInst, controlStyle, rectangle, A[i], labelText);
+			finalTouch(i);
+		}
+		if (ptr[i].ComponentType == "image") {
+			A[i] = 10900 + i;
+			controlStyle = SS_BITMAP;
+			const LPCWSTR imageText = initControl(i);
+			jsonControl[i] = createControl(L"static", hwnd, hInst, controlStyle, rectangle, A[i], imageText);
+			loadIcons(hwnd, GetDC(jsonControl[i]), i);
+			SendMessage(jsonControl[i], STM_SETIMAGE, WPARAM(IMAGE_BITMAP), LPARAM(iconsENimages[i]));
+			finalTouch(i);
+		}
 
-			//sending font message to wndproc : this is gonna change font of all buttons to hfont : in case you want to change font for anywindows
-			// this guy need a try catch block cause client side may have not wanted font
-			SendMessage(jsonButton[i], WM_SETFONT, WPARAM(hFont), TRUE);
+		if (ptr[i].ComponentType == "checkbox") {
+			A[i] = 11000 + i;
+			controlStyle = BS_CHECKBOX;
+			const LPCWSTR checkBoxText = initControl(i);
+			jsonControl[i] = createControl(L"button", hwnd, hInst, controlStyle, rectangle, A[i], checkBoxText);
+			CheckDlgButton(jsonControl[i], A[i], BST_CHECKED);
+			finalTouch(i);
+		}
+		if (ptr[i].ComponentType == "textbox") {
+			A[i] = 12000 + i;
+			controlStyle = WS_BORDER;
+			const LPCWSTR textboxText = initControl(i);
+			jsonControl[i] = createControl(L"edit", hwnd, hInst, controlStyle, rectangle, A[i], textboxText);
+			finalTouch(i);
 
-			//setting button disablity
-			if (ptr[i].Disabled == 1) {
-				EnableWindow(jsonButton[i], false);
+		}
+		if (ptr[i].ComponentType == "groupbox") {
+			A[i] = 12200 + i;
+			controlStyle = BS_GROUPBOX | BS_RIGHT;
+			const LPCWSTR groupboxText = initControl(i);
+			jsonControl[i] = createControl(L"button", hwnd, hInst, controlStyle, rectangle, A[i], groupboxText);
+			finalTouch(i);
+		}
+		if (ptr[i].ComponentType == "radiobutton") {
+			A[i] = 12400 + i;
+			const LPCWSTR radiobuttonText = initControl(i);
+			if (ptr[i].Newgroup) {
+				controlStyle = BS_AUTORADIOBUTTON | WS_GROUP;
+				jsonControl[i] = createControl(L"button", hwnd, hInst, controlStyle, rectangle, A[i], radiobuttonText);
+				SendMessage(jsonControl[i], BM_SETCHECK, 1, 0);
+			}
+			else
+			{
+				controlStyle = BS_AUTORADIOBUTTON;
+				jsonControl[i] = createControl(L"button", hwnd, hInst, controlStyle, rectangle, A[i], radiobuttonText);
+			}
+			finalTouch(i);
+		}
+		if (ptr[i].ComponentType == "combobox") {
+			A[i] = 12600 + i;
+			controlStyle = CBS_DROPDOWNLIST;
+			const LPCWSTR comboboxText = initControl(i);
+			jsonControl[i] = createControl(L"combobox", hwnd, hInst, controlStyle, rectangle, A[i], comboboxText);
+			finalTouch(i);
+			for (int q = 0; q < DROPSIZE; q++) {
+				LPCWSTR comboboxItem = a.getChilds(i)[q];
+				SendMessage(jsonControl[i], CB_ADDSTRING, 0, LPARAM(comboboxItem));
+			}
+			SendMessage(jsonControl[i], CB_SETCURSEL, 0, 0);
+		}
+
+		if (ptr[i].ComponentType == "updown") {
+			A[i] = 13000 + i;
+			INITCOMMONCONTROLSEX icex;
+			icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+			icex.dwICC = ICC_UPDOWN_CLASS;
+			InitCommonControlsEx(&icex);
+			controlStyle = UDS_SETBUDDYINT | UDS_ALIGNLEFT;
+			DWORD editStyle = WS_BORDER | ES_READONLY | SS_CENTER; //read and write with EM_SETREADONLY
+			LPCWSTR updownText = initControl(i);
+			jsonControl[i] = createControl(UPDOWN_CLASS, hwnd, hInst, controlStyle, rectangle, A[i], updownText);
+			finalTouch(i);
+			jsonControl[i + 1] = createControl(L"edit", hwnd, hInst, editStyle, rectangle, A[i] + 1, L"0");
+			SendMessage(jsonControl[i], UDM_SETBUDDY, (WPARAM)jsonControl[i + 1], 0);
+			SendMessageW(jsonControl[i], UDM_SETRANGE, 0, MAKELPARAM(UD_MAX_POS, UD_MIN_POS));
+			i++;
+		}
+		if (ptr[i].ComponentType == "trackbar") {
+			A[i] = 13200 + i;
+			controlStyle = TBS_AUTOTICKS;
+			DWORD editStyle = WS_BORDER | ES_READONLY | SS_CENTER;
+			RECT staticrect = { 0,0,30,20 };
+			LPCWSTR trackbarText = initControl(i);
+			jsonControl[i] = createControl(TRACKBAR_CLASS, hwnd, hInst, controlStyle, rectangle, A[i], trackbarText);
+			finalTouch(i);
+			jsonControl[i + 1] = createControl(L"static", hwnd, hInst, editStyle, staticrect, A[i] + 1, L"0");
+			jsonControl[i + 2] = createControl(L"static", hwnd, hInst, editStyle, staticrect, A[i] + 2, L"100");
+			SendMessageW(jsonControl[i], TBM_SETRANGE, TRUE, MAKELONG(TB_MIN_POS, TB_MAX_POS));
+			SendMessageW(jsonControl[i], TBM_SETPAGESIZE, 0, 10);
+			SendMessageW(jsonControl[i], TBM_SETTICFREQ, 10, 0);
+			SendMessageW(jsonControl[i], TBM_SETPOS, FALSE, 0);
+			SendMessageW(jsonControl[i], TBM_SETBUDDY, TRUE, (LPARAM)jsonControl[i + 1]);
+			SendMessageW(jsonControl[i], TBM_SETBUDDY, FALSE, (LPARAM)jsonControl[i + 2]);
+		}
+		if (ptr[i].ComponentType == "monthcal") {
+			A[i] = 13400 + i;
+			INITCOMMONCONTROLSEX icex;
+			icex.dwSize = sizeof(icex);
+			icex.dwICC = ICC_DATE_CLASSES;
+			InitCommonControlsEx(&icex);
+			controlStyle = MCS_NOTODAYCIRCLE | WS_BORDER;
+			LPCWSTR monthcalText = initControl(i);
+			jsonControl[i] = createControl(MONTHCAL_CLASS, hwnd, hInst, controlStyle, rectangle, A[i], monthcalText);
+			finalTouch(i);
+
+		}
+		if (ptr[i].ComponentType == "progressbar") {
+
+			A[i] = 13600 + i;
+			INITCOMMONCONTROLSEX icex;
+			icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+			icex.dwICC = ICC_PROGRESS_CLASS;
+			InitCommonControlsEx(&icex);
+			controlStyle = PBS_SMOOTH;
+			LPCWSTR progressbarText = initControl(i);
+			jsonControl[i] = createControl(PROGRESS_CLASS, hwnd, hInst, controlStyle, rectangle, A[i], progressbarText);
+			finalTouch(i);
+			SendMessage(jsonControl[i], PBM_SETRANGE, 0, MAKELPARAM(0, 100));
+			SendMessage(jsonControl[i], PBM_SETSTEP, 1, 0);
+			SendMessage(jsonControl[i], PBM_SETPOS, 100, 0);
+		}
+		if (ptr[i].ComponentType == "menubar") {
+			HMENU hMenubar = CreateMenu();
+			HMENU hMenu = CreateMenu();
+			for (int q = 0; q < DROPSIZE; q++) {
+				LPCWSTR menuItem = a.getChilds(i)[q];
+				AppendMenu(hMenubar, MF_POPUP, (UINT_PTR)hMenu, menuItem);
+			}
+			NONCLIENTMETRICS rNCM;
+			rNCM.cbSize = sizeof(NONCLIENTMETRICS);
+			SystemParametersInfo(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &rNCM, 0);
+			lstrcpyn(rNCM.lfMenuFont.lfFaceName, L"B Nazanin", sizeof(rNCM.lfMenuFont.lfFaceName));
+			SystemParametersInfo(SPI_SETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &rNCM, 0);
+			rNCM.lfMenuFont.lfHeight = -MulDiv(nFontSize, GetDeviceCaps(GetDC(jsonControl[i]), LOGPIXELSY), 72);
+			SetMenu(hwnd, hMenubar);
+		}
+		if (ptr[i].ComponentType == "listbox") {
+			A[i] = 13800 + i;
+			controlStyle = ES_AUTOVSCROLL | LBS_NOTIFY | WS_BORDER;
+			LPCWSTR listboxText = initControl(i);
+			jsonControl[i] = createControl(TEXT("listbox"), hwnd, hInst, controlStyle, rectangle, A[i], listboxText);
+			for (int q = 0; q < DROPSIZE; q++) {
+				LPCWSTR listboxItem = a.getChilds(i)[q];
+				SendMessage(jsonControl[i], LB_ADDSTRING, 0, LPARAM(listboxItem));    //LB_DELETESTRING //LB_GETTEXT 
+			}
+			finalTouch(i);
+		}
+
+		if (ptr[i].ComponentType == "statusbar") {
+			InitCommonControls();
+			A[i] = 14000 + i;
+			controlStyle = SBARS_SIZEGRIP;
+			LPCWSTR statusbarText = initControl(i);
+			jsonControl[i] = createControl(STATUSCLASSNAME, hwnd, hInst, controlStyle, rectangle, A[i], statusbarText);
+			finalTouch(i);
+			int statwidths[] = { 100, -1 };
+			SendMessage(jsonControl[i], SB_SETPARTS, sizeof(statwidths) / sizeof(int), (LPARAM)statwidths);
+		}
+		if (ptr[i].ComponentType == "scrollbar") {
+			A[i] = 14200 + i;
+			if (ptr[i].Horizontal) controlStyle = SBS_HORZ;
+			else controlStyle = SBS_VERT;     //LVS_NOSCROLL | LVS_REPORT | LVS_NOCOLUMNHEADER | WS_VSCROLL | LVS_SHOWSELALWAYS | LVS_SINGLESEL
+			LPCWSTR scrollbarText = initControl(i);
+			jsonControl[i] = createControl(L"Scrollbar", hwnd, hInst, controlStyle, rectangle, A[i], scrollbarText);
+			SetScrollRange(jsonControl[i], SB_CTL, 0, 800, FALSE);
+			finalTouch(i);
+		}
+		if (ptr[i].ComponentType == "treeview") {
+			A[i] = 12800 + i;
+			INITCOMMONCONTROLSEX commonCtrls;
+			commonCtrls.dwSize = sizeof(commonCtrls);
+			commonCtrls.dwICC = ICC_TREEVIEW_CLASSES;   // TreeView class name
+			InitCommonControlsEx(&commonCtrls);
+			controlStyle = WS_BORDER | TVS_HASLINES;
+			const LPCWSTR treeviewText = initControl(i);
+			jsonControl[i] = createControl(WC_TREEVIEW, hwnd, hInst, controlStyle, rectangle, A[i], treeviewText);
+			finalTouch(i);
+			for (int q = 0; q < DROPSIZE; q++) {
+				LPCWSTR treeitem = a.getChilds(i)[q];
+				if (treeitem != nullptr) AddItemToTree(jsonControl[i], treeitem, 1);
+				//instead of 1 need to add item level here /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/////////
+				else break;
 			}
 
 		}
-		if (ptr[i].ComponentType == "") {
+		if (ptr[i].ComponentType == "tabcontrol") {
+			A[i] = 13000 + i;
+			controlStyle = WS_BORDER;
+			INITCOMMONCONTROLSEX icex;
+			icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+			icex.dwICC = ICC_TAB_CLASSES;
+			InitCommonControlsEx(&icex);
+			const LPCWSTR tabcontrolText = initControl(i);
+			jsonControl[i] = createControl(WC_TABCONTROL, hwnd, hInst, controlStyle, rectangle, A[i], tabcontrolText);
+			finalTouch(i);
+			TCITEM tie;
+			tie.mask = TCIF_TEXT | TCIF_IMAGE;
+			tie.iImage = -1;
+			for (int q = 0; q < DROPSIZE; q++) {
+				tie.pszText = (LPWSTR)a.getChilds(i)[q];
+				if (a.getChilds(i)[q] != nullptr) TabCtrl_InsertItem(jsonControl[i], q, &tie);
+				//instead of 1 need to add item level here /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/////////
+				else break;
+			}
+			//SetWindowTheme(jsonControl[i], L"Explorer", NULL);
+		}
+		if (ptr[i].ComponentType == "richedit") {
+			LoadLibrary(TEXT("Riched32.dll"));
+			A[i] = 13000 + i;
+			controlStyle = WS_BORDER | WS_TABSTOP | ES_MULTILINE | WS_VSCROLL | ES_AUTOVSCROLL;
+			const LPCWSTR richeditText = initControl(i);
+			jsonControl[i] = createControl(L"RICHEDIT", hwnd, hInst, controlStyle, rectangle, A[i], richeditText);
+			finalTouch(i);
+			//SendMessage(jsonControl[i], EM_SETCUEBANNER,1, (LPARAM)L"Username");
+
+		}
+		if (ptr[i].ComponentType == "syslink") {
+			//RECT rc ={ 400,0,100,100 };
+			A[i] = 13000 + i;
+			//CreateSysLink(hwnd, hInst, rc);
+			controlStyle = WS_TABSTOP;
+			initControl(i);
+			jsonControl[i] = createControl(WC_LINK, hwnd, hInst, controlStyle, rectangle, A[i],
+				L"For more information, <A HREF=\"http://www.microsoft.com\">click here</A> " \
+				L"or <A ID=\"idInfo\">here</A>.");
+			finalTouch(i);
+
+
+
+		}
+		if (ptr[i].ComponentType == "toolbar") {
+			if (ptr[i].Name == "toolbar1")CreateSimpleToolbar(hwnd, hInst);
+		}
+		//array cell is empty
+		if (ptr[i].ComponentType.empty()) {
 			break;
 		}
+		//adding other components
 	}
+
 	return 0;
 }
 
-LRESULT OnCommand(WPARAM wParam, LPARAM lParam) {
-	switch (wParam)
-	{
-
-	default:
-		break;
-	}
-	return 0;
+void toggleCheckBox(int a) {
+	const BOOL checked = IsDlgButtonChecked(hwnd, a);
+	if (checked) CheckDlgButton(hwnd, a, BST_UNCHECKED);
+	else CheckDlgButton(hwnd, a, BST_CHECKED);
 }
 //main function
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow)
 {
-	ustring classText = _T("Main Page");
-	ustring classname = _T("main");
-	WNDCLASS wndclass;
-	MSG msg;
 
+	ustring classText = _T("Dynamic Control Loader with json");
+	ustring classname = _T("main");
+	WNDCLASSEX wndclass;
+	MSG msg;
 
 	wndclass.cbClsExtra = 0;
 	wndclass.cbWndExtra = 0;
-	wndclass.hbrBackground = (HBRUSH)(CreateSolidBrush(RGB(60, 60, 60)));//set back color to window  
-	wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wndclass.cbSize = sizeof(WNDCLASSEX);
+	//***********************************************************************
+	wndclass.hbrBackground = HBRUSH(COLOR_WINDOW);//set back color to window  
+	wndclass.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wndclass.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1)); //
+	wndclass.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON2));
 	wndclass.hInstance = hInstance;
-	wndclass.lpfnWndProc = WndProc;
+	wndclass.lpfnWndProc = wnd_proc;
 	wndclass.lpszClassName = classname.c_str();
-	wndclass.lpszMenuName = NULL;
+	wndclass.lpszMenuName = MAKEINTRESOURCEW(IDB_BITMAP1);
 	wndclass.style = CS_HREDRAW | CS_VREDRAW;
 
 
 	// check this window class is registered or not  
-	if (!RegisterClass(&wndclass))
+	if (!RegisterClassEx(&wndclass))
 	{
-		MessageBox(NULL, TEXT("Window class is not registered"), TEXT("Error...."), MB_ICONERROR);
+		MessageBox(nullptr, TEXT("Window class is not registered"), TEXT("Error...."), MB_ICONERROR);
 		return 0;
 	}
 	//int desktopwidth = GetSystemMetrics(SM_CXSCREEN); //geting desktop width
@@ -268,178 +508,99 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 
 	hwnd = CreateWindow(classname.c_str(),  //window name  
 		classText.c_str(),   // window text  
-		WS_POPUP, //set POPUP window style for no border & controls  
+		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, //if set to popup it will remove any kind of border and buttons on windows default 
 		100,      //window position x  //desktopwidth/4
 		100,      //window position y  //desktopheight/4
-		600,      //width  //desktopwidth/2
-		500,      // height  //desktopheight/2
-		0,          //parent wnd handle
-		0,          //menu handle/wnd id
+		800,      //width  //desktopwidth/2
+		600,      // height  //desktopheight/2
+		nullptr,          //parent wnd handle
+		nullptr,          //menu handle/wnd id
 		hInst,      //app instance
-		0          //user defined info
+		nullptr          //user defined info
 	);
-
+	//***********************************************************************
+	SetLayeredWindowAttributes(hwnd, RGB(0x80, 0x00, 0xFF), 0, LWA_COLORKEY);
 	// show & update created window  
-	ShowWindow(hwnd, iCmdShow);
+	ShowWindow(hwnd, SW_SHOW);
 	UpdateWindow(hwnd);
 
+
+
 	// get message from queue  
-	while (GetMessage(&msg, NULL, 0, 0))
+	while (GetMessage(&msg, nullptr, 0, 0))
 	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
-
 	return static_cast<int>(msg.wParam);
 }
 
 
 // WndProc function  
-LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	HDC hdc;
-	PAINTSTRUCT ps;
-	HWND minimize_button, close_button, customButton;
-	static int X, Y;
-	LRESULT move = NULL;
-	LPDRAWITEMSTRUCT pdis;
-	HICON hIcon;
 
 	switch (message)
 	{
+	case WM_ERASEBKGND:
+		//***********************************************************************
+		//return TRUE;
+		SetBkColor(HDC(wParam), GetSysColor(COLOR_WINDOW));
+		SetLayeredWindowAttributes(HWND(hwnd), GetSysColor(COLOR_WINDOW), 0, LWA_COLORKEY);
+		break;
 	case WM_CREATE:
 		return OnCreate(hwnd, reinterpret_cast<CREATESTRUCT*>(lParam));
 
-		break;
-
-
-	case WM_PAINT:
-		hdc = BeginPaint(hwnd, &ps);
-
-		RECT rect;
-		HBRUSH brush;
-
-		GetClientRect(hwnd, &rect);
-		rect.bottom = rect.bottom - 466;
-		brush = CreateSolidBrush(RGB(0, 0, 0));
-
-		// fill rectangle for top layered title border  
-		FillRect(hdc, &rect, brush);
-
-		// call above function  
-		Draw_LeftRightBottom_Rectangles(rect, hdc, brush, X, Y);
-
-		//draw text as a window by setting white text color & back color  
-		SetBkColor(hdc, RGB(0, 0, 0));
-		SetTextColor(hdc, RGB(255, 255, 255));
-		TextOut(hdc, 35, 7, TEXT("Main Windows"), 12); //last parameter is array length of text
-
-													   //draw text on window  
-													   //SetBkColor(hdc, RGB(60, 60, 60));
-													   //SetTextColor(hdc, RGB(200, 200, 200));
-													   //TextOut(hdc, 160, 120, TEXT("test text"), 9);
-
-													   //draw icon  
-													   //hIcon = (HICON)LoadIcon(hInst, MAKEINTRESOURCE(IDB_PNG1));
-
-													   //DrawIconEx(hdc, 5, 5, hIcon, 20, 20, 0, brush, 0);
-
-		EndPaint(hwnd, &ps);
-
-		break;
-
-		//draw item  
-	case WM_DRAWITEM:
-		pdis = (LPDRAWITEMSTRUCT)lParam;
-
-		switch (pdis->CtlID)
-		{
-		case ID_CLOSE:
-			//draw close button  
-			DrawCloseButton(pdis->hDC);
-			break;
-
-		case ID_MINIMIZE:
-			//draw minimize button  
-			DrawMinimizeButton(pdis->hDC);
-			break;
-		}
-
-		//if button is selected then change values  
-		if (pdis->itemState && ODS_SELECTED)
-		{
-			isMouseDownOnCloseButton = TRUE;
-			isMouseDownOnMinimizeButton = TRUE;
-			isMouseDownOnDemoButton = TRUE;
-		}
-		else
-		{
-			isMouseDownOnCloseButton = FALSE;
-			isMouseDownOnMinimizeButton = FALSE;
-			isMouseDownOnDemoButton = FALSE;
-		}
-
-
-		break;
-
-		//actions of buttons  
+		//actions of buttons 
+		// need to add onCommand like onCreate so it become pretty code.
 	case WM_COMMAND:
 
 		switch (wParam)
 		{
+		case 1223:
+			//there is two constructor in createtestwindow which can be seprate window or child window
+			try1.CreateTestWindow(hInst, hwnd);
+
+			break;
+			//add anynumber of checkbox you want to use 
+		case 11001:
+		case 11002:
+		case 11003:
+		case 11004:
+		case 11005:
+		case 11006:
+			toggleCheckBox(wParam);
+			break;
+		case 10001: //returnBtnsName event from button.json
+			jsonMaker JM;
+			//giving data to jsonMaker for now i'm giving old json not real exact data need to change this later
+			JM.makeJson(ptr, iReturnBtns, hwnd);
+			break;
+		case 13000:
+		case 13001:
+
+			break;
 		case ID_CLOSE:
 			PostQuitMessage(EXIT_SUCCESS);
 			return 0;
+		case WM_CTLCOLORBTN:
+		{
 
+		}
 		case ID_MINIMIZE:
 			SendMessage(hwnd, WM_SYSCOMMAND, SC_MINIMIZE, lParam);
 			break;
-
+		default:
+			break;
 		}
-		return OnCommand(wParam, lParam);
 		break;
-
-		//size  
-	case WM_SIZE:
-		X = LOWORD(lParam);
-		Y = HIWORD(lParam);
-		break;
-
-		//color changing for button
-	case WM_CTLCOLOREDIT:
-
-		//move window 
-	case WM_NCHITTEST:
-		RECT rc;
-		POINT pt;
-
-		GetCursorPos(&pt);
-
-		GetWindowRect(hwnd, &rc);
-		rc.bottom = rc.bottom - 466;
-
-		//if cursor position is within top layered drawn rectangle then  
-		//set move to HTCAPTION for moving the window from its client  
-		if (pt.x <= rc.right && pt.x >= rc.left && pt.y <= rc.bottom && pt.y >= rc.top)
-		{
-			move = DefWindowProc(hwnd, message, wParam, lParam);
-			if (move == HTCLIENT)
-			{
-				move = HTCAPTION;
-			}
-		}
-
-		return move;
-
-		break;
-
-
 	case WM_DESTROY:
 		PostQuitMessage(EXIT_SUCCESS);
 		return 0;
-
+	default: break;
 	}
-
 	return DefWindowProc(hwnd, message, wParam, lParam);
-
 }
+
+
+
