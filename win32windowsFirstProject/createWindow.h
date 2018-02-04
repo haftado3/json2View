@@ -52,6 +52,7 @@ createWindowControl * createWindowControl::CreateTestWindow(HINSTANCE hInst) {
 }
 createWindowControl * createWindowControl::CreateTestWindow(HINSTANCE hInst, HWND hParent) {
 	//parent = hParent;
+	
 	WNDCLASS wincl;
 	if (!GetClassInfo(hInst, m_pszClassName, &wincl)) {
 		wincl.style = CS_HREDRAW | CS_VREDRAW;
@@ -101,6 +102,7 @@ LRESULT CALLBACK createWindowControl::WindowProc(HWND hwnd, UINT uMsg, WPARAM wP
 	case WM_DESTROY: {
 		createWindowControl * pviewvars = (createWindowControl *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		if (pviewvars) pviewvars->m_hWnd = 0;
+		ReleaseDC(hwnd,GetDC(hwnd));
 		//EnableWindow(parent, true);
 		break;
 	}

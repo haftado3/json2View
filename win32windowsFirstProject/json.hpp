@@ -2281,14 +2281,14 @@ namespace nlohmann
 			This function scans a string according to Sect. 6 of RFC 7159.
 
 			The function is realized with a deterministic finite state machine derived
-			from the grammar described in RFC 7159. Starting in state "init", the
+			from the grammar described in RFC 7159. Starting in state "setJson", the
 			input is read and used to determined the next state. Only state "done"
 			accepts the number. State "error" is a trap state to model errors. In the
 			table below, "anything" means any character but the ones listed before.
 
 			state    | 0        | 1-9      | e E      | +       | -       | .        | anything
 			---------|----------|----------|----------|---------|---------|----------|-----------
-			init     | zero     | any1     | [error]  | [error] | minus   | [error]  | [error]
+			setJson     | zero     | any1     | [error]  | [error] | minus   | [error]  | [error]
 			minus    | zero     | any1     | [error]  | [error] | [error] | [error]  | [error]
 			zero     | done     | done     | exponent | done    | done    | decimal1 | done
 			any1     | any1     | any1     | exponent | done    | done    | decimal1 | done
@@ -2324,7 +2324,7 @@ namespace nlohmann
 				// changed if minus sign, decimal point or exponent is read
 				token_type number_type = token_type::value_unsigned;
 
-				// state (init): we just found out we need to scan a number
+				// state (setJson): we just found out we need to scan a number
 				switch (current)
 				{
 				case '-':
@@ -8450,8 +8450,8 @@ namespace nlohmann
 		@brief create a container (array or object) from an initializer list
 
 		Creates a JSON value of type array or object from the passed initializer
-		list @a init. In case @a type_deduction is `true` (default), the type of
-		the JSON value to be created is deducted from the initializer list @a init
+		list @a setJson. In case @a type_deduction is `true` (default), the type of
+		the JSON value to be created is deducted from the initializer list @a setJson
 		according to the following rules:
 
 		1. If the list is empty, an empty JSON object value `{}` is created.
@@ -8488,7 +8488,7 @@ namespace nlohmann
 		@param[in] init  initializer list with JSON values
 
 		@param[in] type_deduction internal parameter; when set to `true`, the type
-		of the JSON value is deducted from the initializer list @a init; when set
+		of the JSON value is deducted from the initializer list @a setJson; when set
 		to `false`, the type provided via @a manual_type is forced. This mode is
 		used by the functions @ref array(initializer_list_t) and
 		@ref object(initializer_list_t).
@@ -8499,13 +8499,13 @@ namespace nlohmann
 		is set to `true`, this parameter has no effect
 
 		@throw type_error.301 if @a type_deduction is `false`, @a manual_type is
-		`value_t::object`, but @a init contains an element which is not a pair
+		`value_t::object`, but @a setJson contains an element which is not a pair
 		whose first element is a string. In this case, the constructor could not
 		create an object. If @a type_deduction would have be `true`, an array
 		would have been created. See @ref object(initializer_list_t)
 		for an example.
 
-		@complexity Linear in the size of the initializer list @a init.
+		@complexity Linear in the size of the initializer list @a setJson.
 
 		@exceptionsafety Strong guarantee: if an exception is thrown, there are no
 		changes to any JSON value.
@@ -8594,7 +8594,7 @@ namespace nlohmann
 
 		@return JSON array value
 
-		@complexity Linear in the size of @a init.
+		@complexity Linear in the size of @a setJson.
 
 		@exceptionsafety Strong guarantee: if an exception is thrown, there are no
 		changes to any JSON value.
@@ -8624,20 +8624,20 @@ namespace nlohmann
 		@note This function is only added for symmetry reasons. In contrast to the
 		related function @ref array(initializer_list_t), there are
 		no cases which can only be expressed by this function. That is, any
-		initializer list @a init can also be passed to the initializer list
+		initializer list @a setJson can also be passed to the initializer list
 		constructor @ref basic_json(initializer_list_t, bool, value_t).
 
 		@param[in] init  initializer list to create an object from (optional)
 
 		@return JSON object value
 
-		@throw type_error.301 if @a init is not a list of pairs whose first
+		@throw type_error.301 if @a setJson is not a list of pairs whose first
 		elements are strings. In this case, no object can be created. When such a
 		value is passed to @ref basic_json(initializer_list_t, bool, value_t),
-		an array would have been created from the passed initializer list @a init.
+		an array would have been created from the passed initializer list @a setJson.
 		See example below.
 
-		@complexity Linear in the size of @a init.
+		@complexity Linear in the size of @a setJson.
 
 		@exceptionsafety Strong guarantee: if an exception is thrown, there are no
 		changes to any JSON value.
@@ -11831,16 +11831,16 @@ namespace nlohmann
 		This function allows to use `push_back` with an initializer list. In case
 
 		1. the current value is an object,
-		2. the initializer list @a init contains only two elements, and
-		3. the first element of @a init is a string,
+		2. the initializer list @a setJson contains only two elements, and
+		3. the first element of @a setJson is a string,
 
-		@a init is converted into an object element and added using
-		@ref push_back(const typename object_t::value_type&). Otherwise, @a init
+		@a setJson is converted into an object element and added using
+		@ref push_back(const typename object_t::value_type&). Otherwise, @a setJson
 		is converted to a JSON value and added using @ref push_back(basic_json&&).
 
 		@param[in] init  an initializer list
 
-		@complexity Linear in the size of the initializer list @a init.
+		@complexity Linear in the size of the initializer list @a setJson.
 
 		@note This function is required to resolve an ambiguous overload error,
 		because pairs like `{"key", "value"}` can be both interpreted as
